@@ -1,6 +1,6 @@
 from app.logger import get_logger
-from app.modules.brain.model import BrainType
-from app.modules.chat.model import ChatInterface
+from app.modules.brain.brain_model import BrainType
+from app.modules.chat.chat_model import ChatInterface
 from app.modules.llm.knowledge_brain_qa import KnowledgeBrainQA
 from app.modules.llm.model import models_supporting_function_calls
 

@@ -79,3 +79,4 @@ paulgraham.py
 .env_test
 
 playground/dataset/*
+app/modules/llm/vectorstores/*

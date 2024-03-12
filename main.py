@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.modules.chat.chat_controller import chat_router
-from app.modules.llm.ollama_controller import ollama_router
+from app.modules.llm.ollama.ollama_controller import ollama_router
 from app.modules.upload.upload_controller import upload_router
 
 app = FastAPI()
@@ -31,4 +31,4 @@ if __name__ == "__main__":
     # run main.py to debug backend
     import uvicorn
 
-    uvicorn.run("main:app", host="127.0.0.1", port=5050, reload=True)
+    uvicorn.run("main:app", host="127.0.0.1", port=5050, reload=True, timeout_keep_alive=300)

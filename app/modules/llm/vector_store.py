@@ -1,14 +1,17 @@
 import os
 import time
-from pathlib import Path
 
+from pathlib import Path
+from langchain_community.document_loaders import PyPDFLoader, UnstructuredMarkdownLoader, TextLoader
 from langchain_community.vectorstores.faiss import FAISS
 from langchain_core.embeddings import Embeddings
-from langchain_core.vectorstores import VectorStore
 from langchain_text_splitters import CharacterTextSplitter
+
 from app.logger import get_logger
 from app.util.files.file import get_file_directory
-from langchain_community.document_loaders import PyPDFLoader, UnstructuredMarkdownLoader, TextLoader
+
+# nltk.download('punkt')
+
 logger = get_logger(__name__)
 
 
@@ -33,6 +36,7 @@ def get_file_data(file_directory):
 
 
 class CustomVectorStore:
+
     number_docs: int = 35
     max_input: int = 2000
 
@@ -50,26 +54,41 @@ class CustomVectorStore:
         self.number_docs = number_docs
         self.max_input = max_input
 
+    # 利用 FAISS 初始化向量数据库
+    # 文档地址：https://python.langchain.com/docs/integrations/vectorstores/faiss_async#saving-and-loading
     def init_store(self):
-        # get all files to embedding
-        data, sources = get_file_data(self.brain_id)
-        text_splitter = CharacterTextSplitter(chunk_size=1500, separator="\n")
-        # docs = []
-        # metadatas = []
-        docs = text_splitter.split_documents(data)
-        logger.info("[Start Embedding] docs length: " + str(len(docs)))
-        # for i, d in enumerate(data):
-        #     splits = text_splitter.split_documents(d)
-        #     docs.extend(splits)
-            # metadatas.extend([{"source": sources[i]}] * len(splits))
-        start_time = time.time()  # 获取当前时间
 
-        store = FAISS.from_documents(docs, self.embedding)
+        # get index from cache
+        current_file_path = Path(__file__).parent.absolute()
+        index_local_path = os.path.join(current_file_path, "vectorstores", f"{self.brain_id}.index")
+        if os.path.exists(index_local_path):
+            store = FAISS.load_local(index_local_path, self.embedding)
+        else:
 
-        end_time = time.time()  # 再次获取当前时间
-        elapsed_time = end_time - start_time  # 计算经过的时间
+            # get all files to embedding
+            data, sources = get_file_data(self.brain_id)
+            text_splitter = CharacterTextSplitter(chunk_size=1500, separator="\n")
+            docs = []
+            # metadatas = []
+            if "page_content" in data[0]:
+                docs = text_splitter.split_documents(data)
+            else:
+                for i, d in enumerate(data):
+                    splits = text_splitter.split_documents(d)
+                    docs.extend(splits)
+            logger.info("[Start Embedding] docs length: " + str(len(docs)))
 
+                # metadatas.extend([{"source": sources[i]}] * len(splits))
+            start_time = time.time()  # 获取当前时间
 
-        logger.info("[Complete Embedding] with time length: %s", int(elapsed_time))
+            store = FAISS.from_documents(docs, self.embedding)
+
+            end_time = time.time()  # 再次获取当前时间
+            elapsed_time = end_time - start_time  # 计算经过的时间
+
+            # 持久化
+            store.save_local(index_local_path)
+
+            logger.info("[Complete Embedding] with time length: %s", int(elapsed_time))
 
         return store
