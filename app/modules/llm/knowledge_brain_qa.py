@@ -4,34 +4,16 @@ from typing import Optional, List, Awaitable, ClassVar
 from uuid import UUID
 
 from langchain.callbacks import AsyncIteratorCallbackHandler
-from langchain.chains import ConversationalRetrievalChain
-from pydantic import BaseModel
 
 from app.config.settings import BrainSettings
 from app.logger import get_logger
-from app.modules.brain.brain_service import BrainService
-from app.modules.chat.chat_service import ChatService
 from app.modules.chat.dto.chat import ChatQuestion
-from app.modules.chat.dto.inputs import CreateChatHistory
 from app.modules.chat.dto.outputs import GetChatHistoryOutput
+from app.modules.llm.basic_brain_qa import BasicBrainQA
 from app.modules.llm.rags.doc_rag_v2 import DocRAG
-from app.modules.llm.rags.rag_interface import RAGInterface
-from app.modules.llm.utils.format_chat_history import format_chat_history
 
 logger = get_logger(__name__)
 
-
-
-brain_service = BrainService()
-chat_service = ChatService()
-
-def is_valid_uuid(uuid_to_test, version=4):
-    try:
-        uuid_obj = UUID(uuid_to_test, version=version)
-    except ValueError:
-        return False
-
-    return str(uuid_obj) == uuid_to_test
 
 async def wrap_done(fn: Awaitable, event: asyncio.Event):
     try:
@@ -43,7 +25,7 @@ async def wrap_done(fn: Awaitable, event: asyncio.Event):
         event.set()
 
 
-class KnowledgeBrainQA(BaseModel):
+class KnowledgeBrainQA(BasicBrainQA):
     class Config:
         """Configuration of the Pydantic Object"""
 
@@ -58,7 +40,7 @@ class KnowledgeBrainQA(BaseModel):
     max_tokens: int = 2000
     max_input: int = 2000
     streaming: bool = False
-    knowledge_qa: Optional[RAGInterface] = None
+    knowledge_qa: Optional = None
     metadata: Optional[dict] = None
     callbacks: List[
         AsyncIteratorCallbackHandler
@@ -71,7 +53,6 @@ class KnowledgeBrainQA(BaseModel):
             model: str,
             brain_id: str,
             chat_id: str,
-            max_tokens: int,
             streaming: bool = False,
             prompt_id: Optional[UUID] = None,
             metadata: Optional[dict] = None,
@@ -85,35 +66,20 @@ class KnowledgeBrainQA(BaseModel):
             prompt_id=prompt_id,
             **kwargs,
         )
+
         # 默认就是用本地的DocRAG
         self.knowledge_qa = DocRAG(
-            model=model,
+            model=self.brain.model if self.brain.model else self.model,
             brain_id=brain_id,
             chat_id=chat_id,
             streaming=streaming,
+            max_input=self.max_input,
+            max_tokens=self.max_tokens,
             **kwargs,
         )
-        self.metadata = metadata
-        self.max_tokens = max_tokens
-
-    @property
-    def prompt_to_use(self):
-        if self.brain_id and is_valid_uuid(self.brain_id):
-            return None
-        else:
-            return None
-    @property
-    def prompt_to_use_id(self) -> Optional[UUID]:
-        # TODO: move to prompt service or instruction or something
-        if self.brain_id and is_valid_uuid(self.brain_id):
-            # return get_prompt_to_use_id(UUID(self.brain_id), self.prompt_id)
-            return None
-        else:
-            return None
-
 
     async def generate_stream(
-            self, chat_id: str, question: ChatQuestion, save_answer: bool = True
+            self, chat_id: str, question: ChatQuestion, save_answer: bool = True, *custom_params: tuple
     ):
         conversational_qa_chain = self.knowledge_qa.get_chain()
         transformed_history, streamed_chat_history = (
@@ -137,7 +103,7 @@ class KnowledgeBrainQA(BaseModel):
                 yield f"data: {json.dumps(streamed_chat_history.dict())}"
 
     def generate_answer(
-            self, chat_id: UUID, question: ChatQuestion, save_answer: bool = True
+            self, chat_id: UUID, question: ChatQuestion, save_answer: bool = True, *custom_params: tuple
     ) -> GetChatHistoryOutput:
         conversational_qa_chain = self.knowledge_qa.get_chain()
         transformed_history = ""
@@ -168,18 +134,3 @@ class KnowledgeBrainQA(BaseModel):
             }
         )
 
-    def initialize_streamed_chat_history(self, chat_id, question):
-        history = chat_service.get_chat_history(self.chat_id)
-        transformed_history = format_chat_history(history)
-        brain = brain_service.get_brain_by_id(self.brain_id)
-
-        streamed_chat_history = CreateChatHistory(
-                **{
-                    "chat_id": chat_id,
-                    "user_message": question.question,
-                    "assistant": "",
-                    "brain_id": brain["brainId"],
-                    "prompt_id": self.prompt_to_use_id,
-                }
-            )
-        return transformed_history, streamed_chat_history

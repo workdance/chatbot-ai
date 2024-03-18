@@ -11,11 +11,9 @@ class ChatInterface(ABC):
         self,
         chat_id,
         model,
-        max_tokens,
         temperature,
         streaming,
         prompt_id,
-        user_id,
         chat_question,
     ):
         pass

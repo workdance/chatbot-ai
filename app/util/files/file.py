@@ -41,12 +41,12 @@ Returns:
 """
 
 
-def get_file_directory(file_directory):
-    return os.path.join(os.getcwd(), "temp", file_directory)
+def get_knowledge_directory(file_directory):
+    return os.path.join(os.getcwd(), "temp/knowledge", file_directory)
 
 
 async def upload_file_storage(file, file_directory, file_name):
-    target_directory = get_file_directory(file_directory)
+    target_directory = get_knowledge_directory(file_directory)
     if not os.path.exists(target_directory):
         os.makedirs(target_directory)
     target_path = os.path.join(target_directory, file_name)
