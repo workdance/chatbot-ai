@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 
@@ -10,11 +10,24 @@ class ChatVO(BaseModel):
     question: str
 
 
-@ollama_router.post("/ollama")
-def read_ollma(body: ChatVO):
-    question = body.question
+@ollama_router.get("/ollama")
+def get_ollama(question) -> StreamingResponse:
     print(question)
     answer = get_messages_from_ollma(question)
-    return StreamingResponse(
-        answer, media_type="text/event-stream",
-    )
+    try:
+        return StreamingResponse(
+            answer, media_type="text/event-stream",
+        )
+    except HTTPException as e:
+        raise e
+
+@ollama_router.post("/ollama")
+def read_ollama(body: ChatVO) -> StreamingResponse:
+    question = body.question
+    answer = get_messages_from_ollma(question)
+    try:
+        return StreamingResponse(
+            answer, media_type="text/event-stream",
+        )
+    except HTTPException as e:
+        raise e

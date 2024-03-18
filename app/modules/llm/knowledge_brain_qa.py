@@ -9,13 +9,29 @@ from pydantic import BaseModel
 
 from app.config.settings import BrainSettings
 from app.logger import get_logger
+from app.modules.brain.brain_service import BrainService
+from app.modules.chat.chat_service import ChatService
 from app.modules.chat.dto.chat import ChatQuestion
+from app.modules.chat.dto.inputs import CreateChatHistory
 from app.modules.chat.dto.outputs import GetChatHistoryOutput
 from app.modules.llm.rags.doc_rag_v2 import DocRAG
 from app.modules.llm.rags.rag_interface import RAGInterface
+from app.modules.llm.utils.format_chat_history import format_chat_history
 
 logger = get_logger(__name__)
 
+
+
+brain_service = BrainService()
+chat_service = ChatService()
+
+def is_valid_uuid(uuid_to_test, version=4):
+    try:
+        uuid_obj = UUID(uuid_to_test, version=version)
+    except ValueError:
+        return False
+
+    return str(uuid_obj) == uuid_to_test
 
 async def wrap_done(fn: Awaitable, event: asyncio.Event):
     try:
@@ -80,59 +96,45 @@ class KnowledgeBrainQA(BaseModel):
         self.metadata = metadata
         self.max_tokens = max_tokens
 
+    @property
+    def prompt_to_use(self):
+        if self.brain_id and is_valid_uuid(self.brain_id):
+            return None
+        else:
+            return None
+    @property
+    def prompt_to_use_id(self) -> Optional[UUID]:
+        # TODO: move to prompt service or instruction or something
+        if self.brain_id and is_valid_uuid(self.brain_id):
+            # return get_prompt_to_use_id(UUID(self.brain_id), self.prompt_id)
+            return None
+        else:
+            return None
+
 
     async def generate_stream(
-            self, chat_id: UUID, question: ChatQuestion, save_answer: bool = True
+            self, chat_id: str, question: ChatQuestion, save_answer: bool = True
     ):
-        callback = AsyncIteratorCallbackHandler()
-        self.callbacks = [callback]
-
-        # 目前是通过ConversationalRetrievalChain来弄，未来看看有哪些更好的方式
-        qa = ConversationalRetrievalChain(
-            retriever=self.knowledge_qa.get_retriever(),
-            combine_docs_chain=self.knowledge_qa.get_doc_chain(
-                callbacks=self.callbacks,
-                streaming=True,
-            ),
-            question_generator=self.knowledge_qa.get_question_generation_llm(),
-            verbose=False,
-            rephrase_question=False,
-            return_source_documents=True,
+        conversational_qa_chain = self.knowledge_qa.get_chain()
+        transformed_history, streamed_chat_history = (
+            self.initialize_streamed_chat_history(chat_id, question)
         )
-        transformed_history = ""
-        prompt_content = None
         response_tokens = []
-
-        run = asyncio.create_task(
-            wrap_done(
-                qa.acall(
-                    {
-                        "question": question.question,
-                        "chat_history": transformed_history,
-                        "custom_personality": prompt_content,
-                    }
-                ),
-                callback.done,
-            )
-        )
-        streamed_chat_history = {
-            "user_message": question.question,
-            "assistant": "",
-        }
-        try:
-            async for token in callback.aiter():
-                logger.debug("Token: %s", token)
-                response_tokens.append(token)
-                streamed_chat_history.assistant = token
-                yield f"data: {json.dumps(streamed_chat_history)}"
-        except Exception as e:
-            logger.error("Error during streaming tokens: %s", e)
-        try:
-            result = run()
-        except Exception as e:
-            logger.error("Error processing source documents: %s", e)
-        assistant = "".join(response_tokens)
-        logger.info("Assistant: %s", assistant)
+        sources = []
+        async for chunk in conversational_qa_chain.astream(
+                {
+                    "question": question.question,
+                    "chat_history": transformed_history,
+                    # "custom_personality": (
+                    #         self.prompt_to_use.content if self.prompt_to_use else None
+                    # ),
+                }
+        ):
+            if chunk.content:
+                # logger.info(f"Chunk: {chunk}")
+                response_tokens.append(chunk.content)
+                streamed_chat_history.assistant = chunk.content
+                yield f"data: {json.dumps(streamed_chat_history.dict())}"
 
     def generate_answer(
             self, chat_id: UUID, question: ChatQuestion, save_answer: bool = True
@@ -165,3 +167,19 @@ class KnowledgeBrainQA(BaseModel):
                 "brain_id": None,
             }
         )
+
+    def initialize_streamed_chat_history(self, chat_id, question):
+        history = chat_service.get_chat_history(self.chat_id)
+        transformed_history = format_chat_history(history)
+        brain = brain_service.get_brain_by_id(self.brain_id)
+
+        streamed_chat_history = CreateChatHistory(
+                **{
+                    "chat_id": chat_id,
+                    "user_message": question.question,
+                    "assistant": "",
+                    "brain_id": brain["brainId"],
+                    "prompt_id": self.prompt_to_use_id,
+                }
+            )
+        return transformed_history, streamed_chat_history

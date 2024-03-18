@@ -57,8 +57,8 @@ def get_answer_generator(chat_id, chat_question, brain_id):
 )
 async def chat_question_stream(
         request: Request,
+        chat_id: str,
         chat_question: ChatQuestion,
-        chat_id: UUID,
 ):
     # chat_instance = BrainfulChat()
     brain_id = chat_question.brain_id

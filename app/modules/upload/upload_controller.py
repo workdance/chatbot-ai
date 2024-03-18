@@ -1,4 +1,5 @@
 import json
+import time
 
 from fastapi import APIRouter, Request, UploadFile, HTTPException
 
@@ -21,7 +22,7 @@ async def upload_file(
         raise HTTPException(status_code=403, detail=message)
     upload_notification = None
     file_directory = str(brain_id)
-    file_name = str(uploadFile.filename)
+    file_name = f"{int(time.time())}-{str(uploadFile.filename)}"
 
     try:
         file_in_storage = await upload_file_storage(uploadFile, file_directory, file_name)

@@ -9,6 +9,11 @@ models_supporting_function_calls = [
     "gpt-3.5-turbo-0613",
 ]
 
+models_supporting_local = [
+    "llama2",
+    "gemma:7b",
+    "qwen:14b",
+]
 
 class LLMModels(BaseModel):
     """LLM models stored in the database that are allowed to be used by the users.
