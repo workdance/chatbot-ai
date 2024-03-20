@@ -78,7 +78,7 @@ class CustomVectorStore:
             text_splitter = CharacterTextSplitter(chunk_size=1500, separator="\n")
             docs = []
             # metadatas = []
-            if "page_content" in data[0]:
+            if len(data) > 0 and hasattr(data[0], 'page_content'):
                 docs = text_splitter.split_documents(data)
             else:
                 for i, d in enumerate(data):
