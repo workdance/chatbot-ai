@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 from app.config.settings import BrainSettings
 from app.logger import get_logger
-from app.modules.llm.vector_store import CustomVectorStore
+from app.llm.vector_store import CustomVectorStore
 
 logger = get_logger(__name__)
 
@@ -28,7 +28,9 @@ Standalone question:"""
 CONDENSE_QUESTION_PROMPT = PromptTemplate.from_template(_template)
 
 # Next is the answering prompt
-template = """Answer the question in Chinese:
+
+# template = """仅根据文件中的提供的内容用中文回答问题:
+template = """Answer the question in Chinese based only on the following context from files:
 {context}
 
 Question: {question}
@@ -42,7 +44,7 @@ DEFAULT_DOCUMENT_PROMPT = PromptTemplate.from_template(
 )
 
 
-class NoDocRAG(BaseModel):
+class DocRAG(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
@@ -59,6 +61,14 @@ class NoDocRAG(BaseModel):
     streaming: bool = False
     vector_store: Optional[CustomVectorStore] = None
 
+    @property
+    def embeddings(self):
+        if self.brain_settings.ollama_api_base_url:
+            return OllamaEmbeddings(
+                base_url=self.brain_settings.ollama_api_base_url
+            )
+        else:
+            return OpenAIEmbeddings()
 
     def __init__(
             self,
@@ -80,6 +90,7 @@ class NoDocRAG(BaseModel):
             max_input=max_input,
             **kwargs,
         )
+        self.vector_store = self._create_vector_store()
         # self.prompt_id = prompt_id
         self.max_tokens = max_tokens
         self.max_input = max_input
@@ -88,10 +99,25 @@ class NoDocRAG(BaseModel):
         self.chat_id = chat_id
         self.streaming = streaming
 
-        logger.info(f"RAG initialized with model {model} and brain {brain_id}")
+        logger.info(f"DocRAG initialized with model {model} and brain {brain_id}")
         logger.info("Max input length: " + str(self.max_input))
 
+    def _create_vector_store(self):
+        return CustomVectorStore(
+            embedding=self.embeddings,
+            brain_id=self.brain_id
+        ).init_store()
+
+    def get_retriever(self):
+        return self.vector_store.as_retriever()
+
+    def _combine_documents(self, docs, document_prompt=DEFAULT_DOCUMENT_PROMPT, document_separator="\n\n"
+    ):
+        doc_strings = [format_document(doc, document_prompt) for doc in docs]
+        return document_separator.join(doc_strings)
+
     def get_chain(self):
+        retriever = self.get_retriever()
 
         _inputs = RunnableParallel(
             standalone_question=RunnablePassthrough.assign(
@@ -103,7 +129,9 @@ class NoDocRAG(BaseModel):
         )
 
         _context = {
-            "context": itemgetter("standalone_question"),
+            "context": itemgetter("standalone_question")
+                       | retriever
+                       | self._combine_documents,
             "question": lambda x: x["standalone_question"],
         }
         conversational_qa_chain = _inputs | _context | ANSWER_PROMPT | ChatOllama(model=self.model)

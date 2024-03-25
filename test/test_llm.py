@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 
-from app.modules.llm.rags.no_doc_rag import NoDocRAG
+from app.llm.rags.no_doc_rag import NoDocRAG
 
 
 async def testRag():

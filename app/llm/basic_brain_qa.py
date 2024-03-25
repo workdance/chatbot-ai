@@ -12,13 +12,11 @@ from app.modules.brain.brain_service import BrainService
 from app.modules.chat.chat_service import ChatService
 from app.modules.chat.dto.chat import ChatQuestion
 from app.modules.chat.dto.inputs import CreateChatHistory
-from app.modules.llm.qa_interfacce import QAInterface
-from app.modules.llm.rags.no_doc_rag import NoDocRAG
-from app.modules.llm.utils.format_chat_history import format_chat_history
+from app.llm.qa_interfacce import QAInterface
+from app.llm.rags.no_doc_rag import NoDocRAG
+from app.llm.utils.format_chat_history import format_chat_history
 
 logger = get_logger(__name__)
-
-
 
 
 brain_service = BrainService()
@@ -117,6 +115,8 @@ class BasicBrainQA(BaseModel, QAInterface):
             self.initialize_streamed_chat_history(chat_id, chat_question)
         )
         response_tokens = []
+
+        logger.info('knowledgeQA answer question]: %s', chat_question.question)
         async for chunk in conversational_qa_chain.astream(
                 {
                     "question": chat_question.question,
@@ -131,6 +131,7 @@ class BasicBrainQA(BaseModel, QAInterface):
                 response_tokens.append(chunk.content)
                 streamed_chat_history.assistant = chunk.content
                 yield f"data: {json.dumps(streamed_chat_history.dict())}"
+        logger.info('[knowledgeQA answer done]: %s', "".join(response_tokens))
 
     async def generate_answer(
             self,

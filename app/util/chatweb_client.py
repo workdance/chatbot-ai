@@ -1,5 +1,3 @@
-from typing import T
-
 import requests
 
 from app.config.settings import ChatwebSettings

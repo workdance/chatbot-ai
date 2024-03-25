@@ -9,7 +9,7 @@ from app.modules.brain.brain_service import BrainService
 from app.modules.brain.brainful_chat import BrainfulChat
 from app.modules.chat.chat_service import ChatService
 from app.modules.chat.dto.chat import ChatQuestion
-from app.modules.llm.model import LLMModels
+from app.llm.model import LLMModels
 
 logger = get_logger(__name__)
 
@@ -75,14 +75,11 @@ async def chat_question_stream(
             media_type="text/event-stream",
         )
         pass
-    except ExceptionGroup as e:
-        print(f"捕获到异常组，包含 {len(e.exceptions)} 个子异常")
-
-        # 遍历并打印所有子异常的详细信息
-
-        for index, exc in enumerate(e.exceptions, start=1):
-            print(f"子异常 {index}: {type(exc).__name__}: {exc}")
-
+    except HTTPException as e:
+        return {
+            "success": False,
+            "message": str(e)
+        }
 
 @chat_router.post(
     "/chat/{chat_id}/question",

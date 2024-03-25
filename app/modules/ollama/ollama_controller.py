@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 
-from app.modules.llm.ollama.ollama_service import get_messages_from_ollma
+from app.modules.ollama.ollama_service import get_messages_from_ollma
 
 ollama_router = APIRouter()
 

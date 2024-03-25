@@ -11,9 +11,9 @@ from pydantic import BaseModel
 
 from app.config.settings import BrainSettings
 from app.logger import get_logger
-from app.modules.llm.prompts.CONDENSE_PROMPT import CONDENSE_QUESTION_PROMPT
-from app.modules.llm.rags.rag_interface import RAGInterface
-from app.modules.llm.vector_store import CustomVectorStore
+from app.llm.prompts.CONDENSE_PROMPT import CONDENSE_QUESTION_PROMPT
+from app.llm.rags.rag_interface import RAGInterface
+from app.llm.vector_store import CustomVectorStore
 
 logger = get_logger(__name__)
 

@@ -9,8 +9,8 @@ from app.config.settings import BrainSettings
 from app.logger import get_logger
 from app.modules.chat.dto.chat import ChatQuestion
 from app.modules.chat.dto.outputs import GetChatHistoryOutput
-from app.modules.llm.basic_brain_qa import BasicBrainQA
-from app.modules.llm.rags.doc_rag_v2 import DocRAG
+from app.llm.basic_brain_qa import BasicBrainQA
+from app.llm.rags.doc_rag_v2 import DocRAG
 
 logger = get_logger(__name__)
 

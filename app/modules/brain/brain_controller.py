@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from app.logger import get_logger
 from app.modules.brain.brain_model import BrainReq
 from app.modules.brain.brain_service import BrainService
-from app.modules.llm.vector_store import get_vectorstore_directory
+from app.llm.vector_store import get_vectorstore_directory
 
 logger = get_logger(__name__)
 
