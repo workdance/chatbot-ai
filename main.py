@@ -33,5 +33,4 @@ if __name__ == "__main__":
     # run main.py to debug backend
     import uvicorn
 
-    # 105766.dev.alipay.net
     uvicorn.run("main:app", host="127.0.0.1", port=5050, reload=True, timeout_keep_alive=300)

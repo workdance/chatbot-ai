@@ -17,6 +17,9 @@ class BrainService:
             "brain_type": BrainType[brain_to_use["brainType"]],
             "brain_id": brain_to_use["brainId"]
         })
+    def get_all_brains(self, user_id: str):
+        response = chatwebClient.post("/api/v1/brain/list", {"userId": user_id})
+        return response
 
     def find_brain_from_question(self, brain_id: str, question: str, history) -> BrainModel:
         brain_id_to_use = brain_id

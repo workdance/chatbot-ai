@@ -2,9 +2,8 @@ from operator import itemgetter
 from typing import Optional, ClassVar
 from uuid import UUID
 
-from langchain_community.chat_models import ChatLiteLLM, ChatOllama
-from langchain_community.embeddings import OllamaEmbeddings, OpenAIEmbeddings
-from langchain_core.language_models import BaseChatModel
+from langchain_community.chat_models import ChatOllama
+from langchain_community.embeddings import OllamaEmbeddings, ModelScopeEmbeddings
 from langchain_core.messages import get_buffer_string
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import format_document, ChatPromptTemplate, PromptTemplate
@@ -12,8 +11,9 @@ from langchain_core.runnables import RunnableParallel, RunnablePassthrough
 from pydantic import BaseModel
 
 from app.config.settings import BrainSettings
-from app.logger import get_logger
+from app.llm.model import MODEl_TYPE
 from app.llm.vector_store import CustomVectorStore
+from app.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -63,12 +63,13 @@ class DocRAG(BaseModel):
 
     @property
     def embeddings(self):
-        if self.brain_settings.ollama_api_base_url:
+        if self.model == MODEl_TYPE.QWEN:
+            model_id = "damo/nlp_corom_sentence-embedding_english-base"
+            return ModelScopeEmbeddings(model_id=model_id)
+        else:
             return OllamaEmbeddings(
                 base_url=self.brain_settings.ollama_api_base_url
             )
-        else:
-            return OpenAIEmbeddings()
 
     def __init__(
             self,

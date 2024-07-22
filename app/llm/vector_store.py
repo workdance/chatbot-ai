@@ -97,6 +97,6 @@ class CustomVectorStore:
             # 持久化
             store.save_local(index_local_path)
 
-            logger.info("[Complete Embedding] with time length: %s", int(elapsed_time))
+            logger.info("[Complete Embedding] cost time: %s ms", int(elapsed_time))
 
         return store

@@ -1,3 +1,5 @@
+from enum import Enum
+
 from pydantic import BaseModel
 
 models_supporting_function_calls = [
@@ -14,6 +16,11 @@ models_supporting_local = [
     "gemma:7b",
     "qwen:14b",
 ]
+
+class MODEl_TYPE(Enum):
+    LLAMA = 'llama2',
+    QWEN = 'qwen:14b'
+
 
 class LLMModels(BaseModel):
     """LLM models stored in the database that are allowed to be used by the users.
